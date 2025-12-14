@@ -1,0 +1,30 @@
+ROLE: Internal Data Acquisition Agent
+
+GOAL:
+Extract variant-level pricing data for search keyword "30A ESC" from AliExpress.
+
+STEPS:
+1. Open https://www.aliexpress.com in Chrome.
+2. Close cookie banners and popups.
+3. Search for "30A ESC".
+4. Sort by Best Match.
+5. From the first 5 results:
+   - Open each product in a new tab.
+   - Extract:
+     - product_title
+     - product_url
+     - seller_name
+     - seller_rating
+     - all variant labels
+     - price per variant
+     - shipping cost if visible
+   - Click each variant one by one in the same tab.
+   - Record updated price and variant label.
+   - Close product tab.
+6. Return structured JSON array only.
+
+RULES:
+- Close any popup immediately.
+- If CAPTCHA appears, skip product.
+- Do not hallucinate missing data.
+- Output JSON only.
