@@ -1,15 +1,48 @@
-from nova_stub import nova_rank
+from nova_client import nova_rank
 from currency import to_usd
 
-def match_items(bom_items, catalog):
+import sqlite3
+import os
+
+def load_candidates(bom_item):
+    # Ensure robust path handling
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, "../bom_pricer.db")
+    
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    cur.execute("""
+      SELECT title, variant, current_A,
+             price_value, price_currency,
+             seller_name, seller_rating, product_url
+      FROM catalog_items
+      WHERE canonical_type = ?
+      AND current_A = ?
+    """, (bom_item["canonical_type"], bom_item["current_A"]))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return [
+      {
+        "title": r[0],
+        "variant": r[1],
+        "current_A": r[2],
+        "price_value": r[3],
+        "price_currency": r[4],
+        "seller": {"name": r[5], "rating": r[6]},
+        "product_url": r[7],
+        "canonical_type": bom_item["canonical_type"] # Add this to satisfy any downstream checks expecting it
+      }
+      for r in rows
+    ]
+
+def match_items(bom_items, catalog=None): # catalog arg is now unused but kept for compatibility signature if needed
     results = []
 
     for b in bom_items:
-        candidates = [
-            c for c in catalog
-            if c["canonical_type"] == b["canonical_type"]
-            and c["current_A"] == b["current_A"]
-        ]
+        candidates = load_candidates(b)
 
         if not candidates:
             results.append({"bom": b, "status": "NOT_FOUND"})

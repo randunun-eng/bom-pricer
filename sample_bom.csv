@@ -1,0 +1,3 @@
+"Description","Quantity","Unit Price (USD)","Total Price (USD)","Supplier","Confidence","Reasoning","Product URL"
+"30A ESC","2","1.5029","3.0058","Unknown","0.85","Exact match in variant label and lowest price (mock).","https://www.aliexpress.com/item/1005010154978695.html"
+"40A ESC","1","2.2174","2.2174","skyhobby Store","0.85","Exact match in variant label and lowest price (mock).","https://www.aliexpress.com/item/4000158662826.html"

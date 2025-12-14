@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOM Pricer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0f0f0f;
+      color: #e0e0e0;
+    }
+    h1 {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+    }
+    .subtitle { color: #888; margin-bottom: 30px; }
+    textarea {
+      width: 100%;
+      padding: 16px;
+      border: 1px solid #333;
+      border-radius: 12px;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 14px;
+      resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: #667eea; }
+    .btn-group { margin: 20px 0; display: flex; gap: 12px; }
+    button {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(0); }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-secondary {
+      background: #2a2a2a;
+      color: #e0e0e0;
+      border: 1px solid #444;
+    }
+    .btn-secondary:hover { background: #333; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    th {
+      background: #252525;
+      color: #888;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    tr:hover td { background: #222; }
+    .status-matched { color: #4ade80; }
+    .status-error { color: #f87171; }
+    .price { color: #fbbf24; font-weight: 600; }
+    .confidence { color: #60a5fa; }
+    a { color: #818cf8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    #loading {
+      display: none;
+      color: #888;
+      padding: 20px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #444;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #results { margin-top: 20px; }
+    .total-row td {
+      background: #252525;
+      font-weight: 600;
+      border-top: 2px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>BOM Pricer</h1>
+  <p class="subtitle">Paste your Bill of Materials, get instant pricing from AliExpress</p>
+
+  <textarea id="bom" rows="6" placeholder="30A ESC x2&#10;40A ESC x1&#10;...">30A ESC x2
+40A ESC x1</textarea>
+
+  <div class="btn-group">
+    <button class="btn-primary" onclick="price()">Get Prices</button>
+    <button class="btn-secondary" onclick="downloadCSV()">Download CSV</button>
+  </div>
+
+  <div id="loading"><span class="spinner"></span>Fetching prices...</div>
+
+  <div id="results"></div>
+
+  <script>
+    let lastResults = null;
+
+    async function price() {
+      const bom = document.getElementById("bom").value;
+      const loading = document.getElementById("loading");
+      const results = document.getElementById("results");
+      
+      loading.style.display = "block";
+      results.innerHTML = "";
+
+      try {
+        const res = await fetch("/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ bom })
+        });
+        const data = await res.json();
+        lastResults = data;
+        renderTable(data);
+      } catch (e) {
+        results.innerHTML = `<p class="status-error">Error: ${e.message}</p>`;
+      } finally {
+        loading.style.display = "none";
+      }
+    }
+
+    function renderTable(data) {
+      if (!data.items || data.items.length === 0) {
+        document.getElementById("results").innerHTML = "<p>No results found.</p>";
+        return;
+      }
+
+      let total = 0;
+      let html = `<table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Total</th>
+            <th>Supplier</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      for (const item of data.items) {
+        if (item.status === "MATCHED") {
+          total += item.total_price_usd || 0;
+          html += `<tr>
+            <td><a href="${item.selected?.product_url || '#'}" target="_blank">${item.bom.current_A}A ESC</a></td>
+            <td>${item.bom.qty}</td>
+            <td class="price">$${item.unit_price_usd?.toFixed(2) || '-'}</td>
+            <td class="price">$${item.total_price_usd?.toFixed(2) || '-'}</td>
+            <td>${item.selected?.seller?.name || 'Unknown'}</td>
+            <td class="confidence">${(item.match_score * 100).toFixed(0)}%</td>
+          </tr>`;
+        } else {
+          html += `<tr>
+            <td>${item.bom?.raw || 'Unknown'}</td>
+            <td>${item.bom?.qty || '-'}</td>
+            <td colspan="4" class="status-error">${item.status}</td>
+          </tr>`;
+        }
+      }
+
+      html += `<tr class="total-row">
+        <td colspan="3">Total BOM Cost</td>
+        <td class="price">$${total.toFixed(2)}</td>
+        <td colspan="2"></td>
+      </tr>`;
+
+      html += `</tbody></table>`;
+      document.getElementById("results").innerHTML = html;
+    }
+
+    async function downloadCSV() {
+      const bom = document.getElementById("bom").value;
+      try {
+        const res = await fetch("/?format=csv", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ bom })
+        });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "bom_pricing.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("Error downloading CSV: " + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

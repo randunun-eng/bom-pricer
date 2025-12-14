@@ -6,3 +6,4 @@ node_modules/
 *.log
 crawler/sample_raw.json
 normalizer/sample_normalized.json
+.dev.vars
