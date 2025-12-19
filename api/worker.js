@@ -1405,6 +1405,106 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // 🖥️ NOVA DIRECT INSERT - Simple endpoint for scrapers
+    // Receives pre-parsed product data and stores directly to D1
+    // ═══════════════════════════════════════════════════════════════
+    if (url.pathname === "/api/nova/insert" && req.method === "POST") {
+      try {
+        const auth = req.headers.get("Authorization");
+        if (!auth || auth !== `Bearer ${env.NOVA_INGEST_KEY}`) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const { title, product_url, variants, search_keyword, currency } = body;
+
+        if (!title || !variants || variants.length === 0) {
+          return Response.json({ error: "Missing title or variants" }, { status: 400 });
+        }
+
+        // Extract product ID from URL
+        let productId = "NOVA-" + Date.now();
+        if (product_url) {
+          const idMatch = product_url.match(/item\/(\d+)/);
+          if (idMatch) productId = idMatch[1];
+        }
+
+        // Parse BOM info from title
+        const bomInfo = parseBomLine(title);
+        const now = Date.now();
+        let storedCount = 0;
+
+        for (const v of variants) {
+          const variantLabel = v.variant_label || v.label || `variant-${storedCount + 1}`;
+          const price = parseFloat(v.price) || 0;
+
+          // Skip zero-price variants
+          if (price <= 0) continue;
+
+          // Generate spec_key from title + variant
+          const fullLabel = title + " " + variantLabel;
+          const specs = extractSpecs(fullLabel);
+          const specKey = generateSpecKey(bomInfo.canonical_type || "PRODUCT", specs) || `PRODUCT:${productId}`;
+
+          const variantId = await generateVariantId(
+            product_url || `nova://${productId}`,
+            variantLabel,
+            specs.pack_qty || 1,
+            "nova_desktop"
+          );
+
+          try {
+            await env.DB.prepare(`
+              INSERT INTO product_variants (
+                variant_id, listing_id, spec_key, variant, title, 
+                price_value, price_currency, unit_price_usd, source, source_url, 
+                last_seen, last_price_update
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'nova_desktop', ?, ?, ?)
+              ON CONFLICT(variant_id) DO UPDATE SET
+                price_value = excluded.price_value,
+                unit_price_usd = excluded.unit_price_usd,
+                last_seen = excluded.last_seen,
+                last_price_update = excluded.last_price_update
+            `).bind(
+              variantId,
+              productId,
+              specKey,
+              variantLabel,
+              title,
+              price,
+              currency || "USD",
+              currency === "LKR" ? Math.round(price / 320 * 100) / 100 : price,
+              product_url,
+              now,
+              now
+            ).run();
+            storedCount++;
+          } catch (e) {
+            console.error(`[Nova Insert] Failed to insert variant: ${e.message}`);
+          }
+        }
+
+        // Mark keyword as done if provided
+        if (search_keyword) {
+          await env.DB.prepare(`
+            UPDATE crawl_keywords SET status = 'done', last_updated = ? WHERE keyword = ?
+          `).bind(now, search_keyword).run().catch(() => { });
+        }
+
+        return Response.json({
+          status: "ok",
+          title: title,
+          variants_stored: storedCount,
+          product_id: productId
+        });
+
+      } catch (e) {
+        console.error("[Nova Insert] Error:", e.message);
+        return Response.json({ error: e.message }, { status: 500 });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // 🖥️ NOVA DESKTOP HELPER - Ingest Endpoint
     // Receives HTML + runParams from Nova desktop script
     // ═══════════════════════════════════════════════════════════════

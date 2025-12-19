@@ -161,28 +161,29 @@ def extract_product_data(page, url, keyword):
 
 
 def send_to_cloudflare(products, keyword):
-    """Send products to Cloudflare Worker"""
+    """Send products to Cloudflare Worker using direct insert endpoint"""
     print(f"\n📤 Uploading {len(products)} products...")
+    
+    # Use the simpler direct insert endpoint
+    INSERT_API = "https://bom-pricer-api.randunun.workers.dev/api/nova/insert"
     
     success = 0
     for p in products:
         if not p:
             continue
-            
+        
+        # Build simple payload for direct insert
         payload = {
-            "html": f"<title>{p['title']}</title>",
-            "json": {
-                "priceComponent": {"discountPrice": {"minPrice": p['price']}},
-                "skuComponent": {"productSKUPropertyList": [{"skuPropertyName": "Model", "skuPropertyValues": [{"propertyValueName": v['variant_label']} for v in p['variants']]}]}
-            },
+            "title": p['title'],
             "product_url": p['product_url'],
+            "variants": p['variants'],
             "search_keyword": keyword,
             "currency": p['currency']
         }
         
         try:
             r = requests.post(
-                CLOUDFLARE_API,
+                INSERT_API,
                 headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
                 data=json.dumps(payload),
                 timeout=30
@@ -192,11 +193,13 @@ def send_to_cloudflare(products, keyword):
                 print(f"  ✅ {result.get('title', '?')[:35]}... ({result.get('variants_stored', 0)} variants)")
                 success += 1
             else:
-                print(f"  ❌ Failed: {r.status_code}")
+                err = r.text[:100] if r.text else str(r.status_code)
+                print(f"  ❌ Failed: {r.status_code} - {err}")
         except Exception as e:
             print(f"  ❌ Error: {e}")
     
     return success
+
 
 
 def main(keyword):
