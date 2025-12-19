@@ -70,7 +70,7 @@ def extract_products(page, keyword):
 
 
 def extract_product_data(page, url, keyword):
-    """Extract data from a single product page"""
+    """Extract data from a single product page with per-variant pricing"""
     print(f"  📥 Loading: {url.split('/item/')[-1][:20]}...")
     
     try:
@@ -84,101 +84,112 @@ def extract_product_data(page, url, keyword):
     page.evaluate("window.scrollBy(0, 300)")
     random_delay(1, 2)
     
-    data = page.evaluate("""
-        (keyword) => {
-            // Get title
+    # Get title first
+    title = page.evaluate("""
+        () => {
             const titleEl = document.querySelector('h1') || document.querySelector('[class*="title"]');
-            const title = titleEl?.textContent?.trim() || 'Unknown Product';
-            
-            // Get price - try multiple selectors and extraction methods
-            let price = 0;
-            let currency = 'LKR'; // Default to LKR since user is in Sri Lanka
-            
-            // Try various price selectors
-            const priceSelectors = [
-                // Modern AliExpress selectors
-                '[class*="price--current"]',
-                '[class*="Price_Price"]',
-                '[class*="product-price"]',
-                '.uniform-banner-box-price',
-                '[class*="SnapshotPrice"]',
-                '[class*="es--wrap"] [class*="price"]',
-                // Legacy selectors
-                '.product-price-value',
-                '#price span',
-                '[itemprop="price"]'
-            ];
-            
-            for (const sel of priceSelectors) {
-                const el = document.querySelector(sel);
-                if (el) {
-                    const text = el.textContent || '';
-                    // Match price patterns: LKR343.06 or 343.06 or රු343
-                    const match = text.match(/(?:LKR|රු|\\$|USD)?\\s*([\\d,]+\\.?\\d*)/i);
-                    if (match) {
-                        price = parseFloat(match[1].replace(/,/g, ''));
-                        if (text.includes('LKR') || text.includes('රු')) currency = 'LKR';
-                        else if (text.includes('$') || text.includes('USD')) currency = 'USD';
-                        if (price > 0) break;
+            return titleEl?.textContent?.trim() || 'Unknown Product';
+        }
+    """)
+    
+    # Helper function to get current displayed price
+    def get_current_price():
+        return page.evaluate("""
+            () => {
+                let price = 0;
+                let currency = 'LKR';
+                
+                const priceSelectors = [
+                    '[class*="price--current"]',
+                    '[class*="Price_Price"]',
+                    '[class*="product-price"]',
+                    '.uniform-banner-box-price',
+                    '[class*="SnapshotPrice"]'
+                ];
+                
+                for (const sel of priceSelectors) {
+                    const el = document.querySelector(sel);
+                    if (el) {
+                        const text = el.textContent || '';
+                        const match = text.match(/(?:LKR|රු|\\$)?\\s*([\\d,]+\\.?\\d*)/i);
+                        if (match) {
+                            price = parseFloat(match[1].replace(/,/g, ''));
+                            if (text.includes('LKR') || text.includes('රු')) currency = 'LKR';
+                            else if (text.includes('$')) currency = 'USD';
+                            if (price > 0) break;
+                        }
                     }
                 }
+                return { price, currency };
             }
-            
-            // Fallback: search all text nodes for price pattern
-            if (price === 0) {
-                const allText = document.body.innerText || '';
-                const lkrMatch = allText.match(/LKR\\s*([\\d,]+\\.?\\d*)/i);
-                if (lkrMatch) {
-                    price = parseFloat(lkrMatch[1].replace(/,/g, ''));
-                    currency = 'LKR';
-                }
-            }
-            
-            // Get variants (SKU options)
-            const variants = [];
-            const skuSelectors = [
-                '.sku-property-text',
-                '[class*="sku-item"]',
-                '[class*="skuPropertyValue"]',
-                'button[class*="SkuValue"]'
-            ];
-            
-            for (const sel of skuSelectors) {
-                const elements = document.querySelectorAll(sel);
-                if (elements.length > 0) {
-                    elements.forEach((el, i) => {
-                        const label = el.textContent?.trim();
-                        if (label && label.length < 80 && label.length > 0) {
-                            variants.push({
-                                variant_label: label,
-                                price: price,
-                                currency: currency,
-                                stock_available: true
-                            });
-                        }
-                    });
-                    break;
-                }
-            }
-            
-            // If no variants, use default
-            if (variants.length === 0) {
-                variants.push({
-                    variant_label: 'Default',
-                    price: price,
-                    currency: currency,
-                    stock_available: true
-                });
-            }
-            
-            return { title, price, currency, variants };
-        }
-    """, keyword)
+        """)
     
-    if data:
-        data['product_url'] = url
-        print(f"  ✅ {data['title'][:40]}... | {data['currency']} {data['price']} | {len(data['variants'])} variants")
+    # Find variant buttons using Playwright
+    variant_selectors = [
+        '[class*="sku-item"]', 
+        '[class*="skuPropertyValue"]', 
+        'button[class*="SkuValue"]',
+        '.sku-property-text'
+    ]
     
+    variants = []
+    variant_buttons = []
+    
+    for sel in variant_selectors:
+        buttons = page.query_selector_all(sel)
+        if buttons and len(buttons) > 0:
+            variant_buttons = buttons
+            print(f"    Found {len(buttons)} variant buttons with '{sel}'")
+            break
+    
+    if variant_buttons and len(variant_buttons) > 0:
+        for i, btn in enumerate(variant_buttons[:15]):  # Limit to 15 variants
+            try:
+                # Get variant label
+                label = btn.text_content()
+                if not label or len(label.strip()) == 0 or len(label) > 80:
+                    continue
+                label = label.strip()
+                
+                # Click the variant to update price
+                btn.click()
+                random_delay(0.3, 0.6)
+                
+                # Get updated price after clicking
+                price_info = get_current_price()
+                
+                if price_info['price'] > 0:
+                    variants.append({
+                        'variant_label': label,
+                        'price': price_info['price'],
+                        'currency': price_info['currency'],
+                        'stock_available': True
+                    })
+                    print(f"      {label}: {price_info['currency']} {price_info['price']}")
+                    
+            except Exception as e:
+                continue
+    
+    # If no variants found, get default price
+    if len(variants) == 0:
+        price_info = get_current_price()
+        if price_info['price'] > 0:
+            variants.append({
+                'variant_label': 'Default',
+                'price': price_info['price'],
+                'currency': price_info['currency'],
+                'stock_available': True
+            })
+    
+    data = {
+        'title': title,
+        'product_url': url,
+        'variants': variants,
+        'price': variants[0]['price'] if variants else 0,
+        'currency': variants[0]['currency'] if variants else 'LKR'
+    }
+    
+    print(f"  ✅ {title[:40]}... | {len(variants)} variants with individual prices")
     return data
 
 
