@@ -262,7 +262,12 @@ def send_to_cloudflare(products, keyword):
             )
             if r.status_code == 200:
                 result = r.json()
-                print(f"  ✅ {result.get('title', '?')[:35]}... ({result.get('variants_stored', 0)} variants)")
+                stored = result.get('variants_stored', 0)
+                errors = result.get('errors', [])
+                print(f"  ✅ {result.get('title', '?')[:35]}... ({stored} variants)")
+                if errors:
+                    for err in errors[:3]:  # Show first 3 errors
+                        print(f"      ⚠️ {err}")
                 success += 1
             else:
                 err = r.text[:100] if r.text else str(r.status_code)
