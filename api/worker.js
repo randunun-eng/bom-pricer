@@ -2431,11 +2431,13 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                               let statusCell = '';
                               
                              if (i.status === 'PENDING_CRAWL') {
-                               // Honest UX: Show that data needs to be crawled
+                               // Show command + request button
                                const safeKeyword = (i.crawl_keyword || i.bom?.raw || '').replace(/"/g, '&quot;');
+                               const cmdText = 'python scripts/scrape_interactive.py "' + safeKeyword + '"';
                                statusCell = '<span class="pending-fetch" style="color:#fbbf24;">⏳ No pricing data yet</span>';
-                               statusCell += ' <button class="nova-btn" data-keyword="' + safeKeyword + '" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;">🤖 Run with Nova</button>';
-                               statusCell += '<br><small style="color:#888;">Have Nova Act? Click to copy crawl command & run locally</small>';
+                               statusCell += '<br><code class="crawl-cmd" style="background:#1a1a2e;color:#4ade80;padding:4px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:6px 0;cursor:pointer;" data-cmd="' + cmdText + '" title="Click to copy">' + cmdText + '</code>';
+                               statusCell += ' <button class="copy-cmd-btn" data-cmd="' + cmdText + '" style="background:#333;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:10px;">📋 Copy</button>';
+                               statusCell += '<br><small style="color:#888;">Run this command on a PC with Nova Act to populate pricing data</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
                              }
@@ -2454,11 +2456,12 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                         document.getElementById("results").innerHTML = html;
                         recalcBomTotal();
 
-      // Auto-retry for SEARCHING or PENDING_CRAWL items
-      const hasPending = data.items.some(i => i.status === "SEARCHING" || i.status === "PENDING_CRAWL");
+      // Auto-retry only for SEARCHING status (actively being processed)
+      // Don't auto-refresh for PENDING_CRAWL (waiting for manual Nova run)
+      const hasSearching = data.items.some(i => i.status === "SEARCHING");
       const retryCount = window._pendingRetryCount || 0;
       
-      if (hasPending && retryCount < 4) {
+      if (hasSearching && retryCount < 4) {
         window._pendingRetryCount = retryCount + 1;
         let countdown = 15;
         const countdownEl = document.createElement("p");
@@ -2616,42 +2619,28 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
 
                         // Crawl button removed - Nova agents handle crawling in background
 
-                        // Event delegation for Run with Nova buttons
+                        // Event delegation for copy command buttons
                         document.getElementById('results').addEventListener('click', function(e) {
-      if (e.target.classList.contains('nova-btn')) {
-        const keyword = e.target.dataset.keyword;
-        if (keyword) {
-          e.target.disabled = true;
-          e.target.textContent = '⏳ Requesting...';
-          e.target.style.opacity = '0.7';
-          
-          fetch('/api/crawl/request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keyword: keyword })
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.status === 'ok') {
-              e.target.textContent = '✅ Crawl Requested!';
-              e.target.style.background = '#10b981';
-              // Start polling for data
-              window._pendingRetryCount = 0;
-              setTimeout(() => window.price(), 3000);
-            } else {
-              e.target.textContent = '❌ ' + (data.error || 'Failed');
-              e.target.style.background = '#ef4444';
-              setTimeout(() => {
-                e.target.textContent = '🤖 Run with Nova';
-                e.target.disabled = false;
-                e.target.style.opacity = '1';
-                e.target.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-              }, 3000);
-            }
-          })
-          .catch(err => {
-            e.target.textContent = '❌ Network Error';
-            e.target.style.background = '#ef4444';
+      // Handle copy button click
+      if (e.target.classList.contains('copy-cmd-btn') || e.target.classList.contains('crawl-cmd')) {
+        const cmd = e.target.dataset.cmd;
+        if (cmd) {
+          navigator.clipboard.writeText(cmd).then(() => {
+            const originalText = e.target.textContent;
+            e.target.textContent = '✅ Copied!';
+            e.target.style.background = '#10b981';
+            e.target.style.color = '#fff';
+            setTimeout(() => {
+              e.target.textContent = originalText;
+              if (e.target.classList.contains('copy-cmd-btn')) {
+                e.target.style.background = '#333';
+              } else {
+                e.target.style.background = '#1a1a2e';
+                e.target.style.color = '#4ade80';
+              }
+            }, 2000);
+          }).catch(() => {
+            prompt('Copy this command:', cmd);
           });
         }
       }
