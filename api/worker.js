@@ -1460,23 +1460,22 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
           try {
             await env.DB.prepare(`
               INSERT INTO product_variants (
-                variant_id, spec_key, variant, title, 
-                price_value, price_currency, unit_price_usd, source, source_url, 
+                variant_id, product_id, spec_key, variant_label, 
+                unit_price_usd, currency, product_url, source, 
                 last_seen, last_price_update
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, 'nova_desktop', ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, 'nova_desktop', ?, ?)
               ON CONFLICT(variant_id) DO UPDATE SET
-                price_value = excluded.price_value,
                 unit_price_usd = excluded.unit_price_usd,
+                currency = excluded.currency,
                 last_seen = excluded.last_seen,
                 last_price_update = excluded.last_price_update
             `).bind(
               variantId,
+              productId,
               specKey,
               variantLabel,
-              title,
-              price,
-              currency || "LKR",
               currency === "LKR" ? Math.round(price / 320 * 100) / 100 : price,
+              currency || "LKR",
               product_url,
               now,
               now
