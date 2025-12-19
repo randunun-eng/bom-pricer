@@ -2432,11 +2432,13 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                               
                              if (i.status === 'PENDING_CRAWL') {
                                // Show command + request button
-                               const safeKeyword = (i.crawl_keyword || i.bom?.raw || '').replace(/"/g, '&quot;');
-                               const cmdText = 'python scripts/scrape_interactive.py "' + safeKeyword + '"';
+                               const rawKeyword = (i.crawl_keyword || i.bom?.raw || '');
+                               // Use single quotes in Python command to avoid HTML attribute issues
+                               const cmdText = "python scripts/scrape_interactive.py '" + rawKeyword.replace(/'/g, "\\'") + "'";
+                               const htmlSafeCmd = cmdText.replace(/"/g, '&quot;');
                                statusCell = '<span class="pending-fetch" style="color:#fbbf24;">⏳ No pricing data yet</span>';
-                               statusCell += '<br><code class="crawl-cmd" style="background:#1a1a2e;color:#4ade80;padding:4px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:6px 0;cursor:pointer;" data-cmd="' + cmdText + '" title="Click to copy">' + cmdText + '</code>';
-                               statusCell += ' <button class="copy-cmd-btn" data-cmd="' + cmdText + '" style="background:#333;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:10px;">📋 Copy</button>';
+                               statusCell += '<br><code class="crawl-cmd" style="background:#1a1a2e;color:#4ade80;padding:4px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:6px 0;cursor:pointer;word-break:break-all;max-width:100%;" data-cmd="' + htmlSafeCmd + '" title="Click to copy">' + cmdText + '</code>';
+                               statusCell += ' <button class="copy-cmd-btn" data-cmd="' + htmlSafeCmd + '" style="background:#333;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:10px;">📋 Copy</button>';
                                statusCell += '<br><small style="color:#888;">Run this command on a PC with Nova Act to populate pricing data</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
