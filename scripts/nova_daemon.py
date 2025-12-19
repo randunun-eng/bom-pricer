@@ -53,10 +53,11 @@ def mark_complete(keyword):
 
 
 def run_crawl(keyword):
-    """Run the interactive scraper for a keyword"""
+    """Run the automated scraper for a keyword"""
     print(f"\n🤖 Crawling: '{keyword}'")
     
-    script_path = os.path.join(os.path.dirname(__file__), "scrape_interactive.py")
+    # Use the automated (non-interactive) scraper
+    script_path = os.path.join(os.path.dirname(__file__), "scrape_auto.py")
     
     try:
         result = subprocess.run(
