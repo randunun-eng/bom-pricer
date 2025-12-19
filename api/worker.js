@@ -2480,7 +2480,7 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
             window.price();
           }
         }, 1000);
-      } else if (!hasPending) {
+      } else if (!hasSearching) {
         // Reset retry count when all items are resolved
         window._pendingRetryCount = 0;
       }
