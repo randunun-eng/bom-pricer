@@ -2379,11 +2379,11 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                               let statusCell = '';
                               
                              if (i.status === 'PENDING_CRAWL') {
-                               // Show spinner + Run with Nova button for users with Nova Act
+                               // Honest UX: Show that data needs to be crawled
                                const safeKeyword = (i.crawl_keyword || i.bom?.raw || '').replace(/"/g, '&quot;');
-                               statusCell = '<span class="pending-fetch"><span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:6px;"></span>Fetching from trusted source...</span>';
+                               statusCell = '<span class="pending-fetch" style="color:#fbbf24;">⏳ No pricing data yet</span>';
                                statusCell += ' <button class="nova-btn" data-keyword="' + safeKeyword + '" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;">🤖 Run with Nova</button>';
-                               statusCell += '<br><small style="color:#888;">Have Nova Act? Click to copy crawl command</small>';
+                               statusCell += '<br><small style="color:#888;">Have Nova Act? Click to copy crawl command & run locally</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
                              }
