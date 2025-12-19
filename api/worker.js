@@ -2559,6 +2559,7 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
         }
       }
                             html += '<tr class="total-row"><td colspan="3">Total BOM Cost</td><td></td><td class="price" id="bom-total">$' + recalcBomTotal() + '</td></tr></tbody></table>';
+                            html += '<div style="text-align:right; font-size:11px; color:#888; margin-top:8px;">* Prices exclude shipping and import taxes</div>';
                         document.getElementById("results").innerHTML = html;
                         recalcBomTotal();
 
