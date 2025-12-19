@@ -1433,13 +1433,17 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
         const bomInfo = parseBomLine(title);
         const now = Date.now();
         let storedCount = 0;
+        const errors = [];
 
         for (const v of variants) {
           const variantLabel = v.variant_label || v.label || `variant-${storedCount + 1}`;
           const price = parseFloat(v.price) || 0;
 
           // Skip zero-price variants
-          if (price <= 0) continue;
+          if (price <= 0) {
+            errors.push(`Skipped ${variantLabel}: price is 0`);
+            continue;
+          }
 
           // Generate spec_key from title + variant
           const fullLabel = title + " " + variantLabel;
@@ -1472,7 +1476,7 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
               variantLabel,
               title,
               price,
-              currency || "USD",
+              currency || "LKR",
               currency === "LKR" ? Math.round(price / 320 * 100) / 100 : price,
               product_url,
               now,
@@ -1480,7 +1484,8 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
             ).run();
             storedCount++;
           } catch (e) {
-            console.error(`[Nova Insert] Failed to insert variant: ${e.message}`);
+            console.error(`[Nova Insert] Failed to insert variant ${variantLabel}: ${e.message}`);
+            errors.push(`DB error for ${variantLabel}: ${e.message}`);
           }
         }
 
@@ -1495,7 +1500,8 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
           status: "ok",
           title: title,
           variants_stored: storedCount,
-          product_id: productId
+          product_id: productId,
+          errors: errors.length > 0 ? errors : undefined
         });
 
       } catch (e) {
