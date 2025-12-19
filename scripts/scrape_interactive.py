@@ -84,45 +84,84 @@ def extract_product_data(page, url, keyword):
     page.evaluate("window.scrollBy(0, 300)")
     random_delay(1, 2)
     
-    # Get title first
+    # Get title first (with better selector)
     title = page.evaluate("""
         () => {
-            const titleEl = document.querySelector('h1') || document.querySelector('[class*="title"]');
-            return titleEl?.textContent?.trim() || 'Unknown Product';
+            // Try multiple title selectors
+            const selectors = [
+                'h1[data-pl="product-title"]',
+                'h1',
+                '[class*="ProductTitle"]',
+                '[class*="product-title"]',
+                '[class*="HalfLayout"] h1'
+            ];
+            for (const sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el && el.textContent?.trim()) {
+                    return el.textContent.trim();
+                }
+            }
+            return document.title || 'Unknown Product';
         }
     """)
+    print(f"    Title: {title[:50]}...")
     
     # Helper function to get current displayed price
     def get_current_price():
-        return page.evaluate("""
+        result = page.evaluate("""
             () => {
                 let price = 0;
                 let currency = 'LKR';
+                let foundIn = '';
                 
+                // Broader price selectors
                 const priceSelectors = [
+                    '[class*="price--current"] span',
                     '[class*="price--current"]',
-                    '[class*="Price_Price"]',
+                    '[class*="Price"] span',
                     '[class*="product-price"]',
+                    '[class*="es--wrap"] span',
                     '.uniform-banner-box-price',
-                    '[class*="SnapshotPrice"]'
+                    '[class*="SnapshotPrice"]',
+                    '[class*="Price_Price"]'
                 ];
                 
                 for (const sel of priceSelectors) {
                     const el = document.querySelector(sel);
                     if (el) {
                         const text = el.textContent || '';
-                        const match = text.match(/(?:LKR|රු|\\$)?\\s*([\\d,]+\\.?\\d*)/i);
+                        // Match LKR or plain numbers
+                        const match = text.match(/(?:LKR|රු)?\\s*([\\d,]+(?:\\.\\d{1,2})?)/);
                         if (match) {
-                            price = parseFloat(match[1].replace(/,/g, ''));
-                            if (text.includes('LKR') || text.includes('රු')) currency = 'LKR';
-                            else if (text.includes('$')) currency = 'USD';
-                            if (price > 0) break;
+                            const parsed = parseFloat(match[1].replace(/,/g, ''));
+                            if (parsed > 0) {
+                                price = parsed;
+                                foundIn = sel;
+                                if (text.includes('LKR') || text.includes('රු')) currency = 'LKR';
+                                else if (text.includes('$')) currency = 'USD';
+                                break;
+                            }
                         }
                     }
                 }
-                return { price, currency };
+                
+                // Fallback: search body text for LKR pattern
+                if (price === 0) {
+                    const allText = document.body?.innerText || '';
+                    const lkrMatch = allText.match(/LKR\\s*([\\d,]+(?:\\.\\d{1,2})?)/);
+                    if (lkrMatch) {
+                        price = parseFloat(lkrMatch[1].replace(/,/g, ''));
+                        currency = 'LKR';
+                        foundIn = 'body-text-fallback';
+                    }
+                }
+                
+                return { price, currency, foundIn };
             }
         """)
+        if result['price'] > 0:
+            return result
+        return {'price': 0, 'currency': 'LKR', 'foundIn': ''}
     
     # Find variant buttons using Playwright
     variant_selectors = [
