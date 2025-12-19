@@ -2758,8 +2758,8 @@ export default {
             const cleanKeyword = b.raw.replace(/x\d+$/i, "").trim();
             results.push({
               bom: b,
-              status: "NOT_FOUND",
-              message: "No pricing data available. Try manual search or crawl.",
+              status: "PENDING_CRAWL",
+              message: "Fetching from trusted source...",
               crawl_keyword: cleanKeyword,
               manual_url: buildAliExpressSearchUrl(cleanKeyword)
             });
