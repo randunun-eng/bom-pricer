@@ -19,6 +19,20 @@ Instead of relying on fragile fully-automated scrapers that get blocked, this sy
 
 ## 🛠️ System Architecture
 
+```mermaid
+graph TD
+    User["User"] -->|1. Enters BOM| Worker["Cloudflare Worker (API/UI)"]
+    Worker -->|2. Parsed Specs| DB[("D1 Database")]
+    DB -->|3. Matched Prices| Worker
+    Worker -->|4. Returns Pricing| User
+    
+    User -->|5. Runs Command| Scraper["Local Python Scraper"]
+    Scraper -->|6. Opens Browser| AliExpress["AliExpress"]
+    AliExpress -->|7. Product Data| Scraper
+    Scraper -->|8. Push Data| Worker
+    Worker -->|9. Store Variant| DB
+```
+
 1. **Frontend/API (Cloudflare Worker)**
    - Parses incoming BOM lines (e.g., "1300mah 4s lipo").
    - queries D1 database for matching `spec_keys`.
