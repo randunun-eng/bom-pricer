@@ -2113,6 +2113,8 @@ export default {
     .risk-medium { background: #78350f; color: #fbbf24; }
     .risk-high { background: #7f1d1d; color: #f87171; }
     .row-unit, .row-total { transition: all 0.3s; }
+    .status-pending { color: #60a5fa; }
+    .pending-fetch { color: #60a5fa; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -2246,49 +2248,56 @@ export default {
                             html += '</tr>';
         } else {
                               // Non-MATCHED status (SEARCHING, NOT_FOUND, PENDING_CRAWL etc.)
-                              let statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
+                              let statusCell = '';
+                              
+                             if (i.status === 'PENDING_CRAWL') {
+                               // Clean UX: No button, just status with spinner
+                               statusCell = '<span class="pending-fetch"><span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:6px;"></span>Fetching from trusted source...</span>';
+                               statusCell += '<br><small style="color:#888;">Nova agent will crawl this item</small>';
+                             } else {
+                               statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
+                             }
 
-                            // Add Crawl Now button for PENDING_CRAWL items
-                            if (i.crawl_keyword) {
-            const safeKeyword = i.crawl_keyword.replace(/"/g, '&quot;');
-                            statusCell += ' <button class="crawl-btn" data-keyword="' + safeKeyword + '" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;margin-left:8px;">🔄 Crawl Now</button>';
-          }
-
-                            // Also keep manual search as fallback
-                            if (i.manual_url) {
+                            // Keep manual search as fallback for non-pending items
+                            if (i.manual_url && i.status !== 'PENDING_CRAWL') {
                               statusCell += ' <a href="' + i.manual_url + '" target="_blank" style="color:#6d9eeb;font-size:11px;margin-left:6px;">[Manual Search]</a>';
           }
-                            if (i.message) {
+                            if (i.message && i.status !== 'PENDING_CRAWL') {
                               statusCell += '<br><small style="opacity:0.7">' + i.message + '</small>';
           }
-                            html += '<tr><td>' + (i.bom?.raw || 'Unknown') + '</td><td>' + (i.bom?.qty || '-') + '</td><td colspan="3" class="status-error">' + statusCell + '</td></tr>';
+                            html += '<tr data-pending-keyword="' + (i.crawl_keyword || '') + '"><td>' + (i.bom?.raw || 'Unknown') + '</td><td>' + (i.bom?.qty || '-') + '</td><td colspan="3" class="' + (i.status === 'PENDING_CRAWL' ? 'status-pending' : 'status-error') + '">' + statusCell + '</td></tr>';
         }
       }
                             html += '<tr class="total-row"><td colspan="3">Total BOM Cost</td><td></td><td class="price" id="bom-total">$' + recalcBomTotal() + '</td></tr></tbody></table>';
                         document.getElementById("results").innerHTML = html;
                         recalcBomTotal();
 
-      // Auto-retry once if any item is SEARCHING
-      const hasSearching = data.items.some(i => i.status === "SEARCHING");
-                        if (hasSearching && !window._retryAttempted) {
-                          window._retryAttempted = true;
-                        let countdown = 10;
-                        const countdownEl = document.createElement("p");
-                        countdownEl.id = "retry-countdown";
-                        countdownEl.style.cssText = "color:#6d9eeb; margin-top:10px;";
-                        countdownEl.textContent = "Retrying in " + countdown + "s...";
-                        document.getElementById("results").appendChild(countdownEl);
+      // Auto-retry for SEARCHING or PENDING_CRAWL items
+      const hasPending = data.items.some(i => i.status === "SEARCHING" || i.status === "PENDING_CRAWL");
+      const retryCount = window._pendingRetryCount || 0;
+      
+      if (hasPending && retryCount < 4) {
+        window._pendingRetryCount = retryCount + 1;
+        let countdown = 15;
+        const countdownEl = document.createElement("p");
+        countdownEl.id = "retry-countdown";
+        countdownEl.style.cssText = "color:#6d9eeb; margin-top:10px; display:flex; align-items:center; gap:8px;";
+        countdownEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Checking for data in ' + countdown + 's... (attempt ' + (retryCount + 1) + '/4)';
+        document.getElementById("results").appendChild(countdownEl);
         
         const timer = setInterval(() => {
-                          countdown--;
+          countdown--;
           if (countdown > 0) {
-                          countdownEl.textContent = "Retrying in " + countdown + "s...";
+            countdownEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Checking for data in ' + countdown + 's...';
           } else {
-                          clearInterval(timer);
-                        countdownEl.textContent = "Retrying...";
-                        window.price(); // Auto-retry
+            clearInterval(timer);
+            countdownEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Refreshing...';
+            window.price();
           }
         }, 1000);
+      } else if (!hasPending) {
+        // Reset retry count when all items are resolved
+        window._pendingRetryCount = 0;
       }
     }
                         window.onCandidateSelected = function(itemKey, qty) {
@@ -2423,15 +2432,7 @@ export default {
       }
     });
 
-                        // Event delegation for Crawl Now buttons
-                        document.getElementById('results').addEventListener('click', function(e) {
-      if (e.target.classList.contains('crawl-btn')) {
-        const keyword = e.target.dataset.keyword;
-                        if (keyword) {
-                          window.triggerCrawl(keyword, e.target);
-        }
-      }
-    });
+                        // Crawl button removed - Nova agents handle crawling in background
                       </script>
                     </body>
                 </html>`;
