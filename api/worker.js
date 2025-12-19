@@ -1987,133 +1987,138 @@ export default {
 
     // 🏠 Serve UI (Root)
     if ((url.pathname === "/" || url.pathname === "/index.html") && req.method === "GET") {
-      const html = `< !DOCTYPE html >
-                <html lang="en">
-                  <head>
-                    <meta charset="UTF-8">
-                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>RC BOM Builder V2.0</title>
-                        <style>
-                          * {box - sizing: border-box; }
-                          body {
-                            font - family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                          max-width: 900px;
-                          margin: 40px auto;
-                          padding: 20px;
-                          background: #0f0f0f;
-                          color: #e0e0e0;
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RC BOM Builder V2.0</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0f0f0f;
+      color: #e0e0e0;
     }
-                          h1 {
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                          -webkit-background-clip: text;
-                          -webkit-text-fill-color: transparent;
-                          font-size: 2.5rem;
-                          margin-bottom: 8px;
+    h1 {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 2.5rem;
+      margin-bottom: 8px;
     }
-                          .subtitle {color: #888; margin-bottom: 30px; }
-                          textarea {
-                            width: 100%;
-                          padding: 16px;
-                          border: 1px solid #333;
-                          border-radius: 12px;
-                          background: #1a1a1a;
-                          color: #fff;
-                          font-family: 'Monaco', 'Consolas', monospace;
-                          font-size: 14px;
-                          resize: vertical;
+    .subtitle { color: #888; margin-bottom: 30px; }
+    textarea {
+      width: 100%;
+      padding: 16px;
+      border: 1px solid #333;
+      border-radius: 12px;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 14px;
+      resize: vertical;
     }
-                          textarea:focus {outline: none; border-color: #667eea; }
-                          .btn-group {margin: 20px 0; display: flex; gap: 12px; }
-                          button {
-                            padding: 12px 28px;
-                          border: none;
-                          border-radius: 8px;
-                          font-size: 16px;
-                          font-weight: 600;
-                          cursor: pointer;
-                          transition: transform 0.1s, box-shadow 0.2s;
+    textarea::placeholder { color: #666; }
+    textarea:focus { outline: none; border-color: #667eea; }
+    .btn-group { margin: 20px 0; display: flex; gap: 12px; }
+    button {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
     }
-                          button:hover {transform: translateY(-2px); }
-                          button:active {transform: translateY(0); }
-                          .btn-primary {
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                          color: white;
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(0); }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
     }
-                          .btn-secondary {
-                            background: #2a2a2a;
-                          color: #e0e0e0;
-                          border: 1px solid #444;
+    .btn-secondary {
+      background: #2a2a2a;
+      color: #e0e0e0;
+      border: 1px solid #444;
     }
-                          table {
-                            width: 100%;
-                          border-collapse: collapse;
-                          margin-top: 20px;
-                          background: #1a1a1a;
-                          border-radius: 12px;
-                          overflow: hidden;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
     }
-                          th, td {
-                            padding: 14px 16px;
-                          text-align: left;
-                          border-bottom: 1px solid #2a2a2a;
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid #2a2a2a;
     }
-                          th {
-                            background: #252525;
-                          color: #888;
-                          font-weight: 500;
-                          text-transform: uppercase;
-                          font-size: 12px;
+    th {
+      background: #252525;
+      color: #888;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 12px;
     }
-                          tr:hover td {background: #222; }
-                          .price {color: #fbbf24; font-weight: 600; }
-                          .confidence {color: #60a5fa; }
-                          a {color: #818cf8; text-decoration: none; }
-                          .status-error {color: #f87171; }
-                          #loading {display: none; color: #888; padding: 20px; }
-                          .spinner {
-                            display: inline-block; width: 20px; height: 20px;
-                          border: 2px solid #444; border-top-color: #667eea;
-                          border-radius: 50%; animation: spin 0.8s linear infinite;
-                          margin-right: 10px;
+    tr:hover td { background: #222; }
+    .price { color: #fbbf24; font-weight: 600; }
+    .confidence { color: #60a5fa; }
+    a { color: #818cf8; text-decoration: none; }
+    .status-error { color: #f87171; }
+    #loading { display: none; color: #888; padding: 20px; }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #444;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
     }
-                          @keyframes spin {to {transform: rotate(360deg); } }
-                          .total-row td {background: #252525; font-weight: 600; border-top: 2px solid #444; }
-                          .badge {display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 6px; }
-                          .badge-trusted {background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; }
-                          .badge-low {background: #065f46; color: #34d399; }
-                          .badge-medium {background: #78350f; color: #fbbf24; }
-                          .badge-high {background: #7f1d1d; color: #f87171; }
-                          .verified {color: #4ade80; font-size: 12px; display: block; margin-top: 4px; }
-                          .verified::before {content: "✓ "; }
-                          .warning {color: #fbbf24; font-size: 12px; display: block; margin-top: 4px; }
-                          .warning::before {content: "⚠ "; }
-                          .item-details {font - size: 11px; color: #888; margin-top: 4px; }
-                          .candidates {margin: 8px 0; }
-                          .candidate-row {padding: 6px 8px; margin: 4px 0; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; transition: all 0.2s; }
-                          .candidate-row:hover {border - color: #667eea; }
-                          .candidate-row label {display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
-                          .candidate-row input[type=radio] {accent - color: #667eea; }
-                          .candidate-row .brand {color: #60a5fa; font-weight: 600; }
-                          .candidate-row .price {color: #fbbf24; margin-left: auto; }
-                          .candidate-row .remark {color: #888; font-size: 11px; }
-                          .candidate-row .pack-info {color: #6b7280; font-size: 10px; margin-left: 4px; }
-                          .candidate-row .feedback-info {display: flex; gap: 8px; font-size: 10px; color: #9ca3af; margin-left: 8px; }
-                          .candidate-row .feedback-info .rating {color: #fbbf24; }
-                          .candidate-row .feedback-info .reviews {color: #60a5fa; }
-                          .candidate-row .feedback-info .sold {color: #34d399; }
-                          .candidate-row .pref-badge {background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 6px; font-weight: 600; }
-                          .risk-badge {padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-left: 8px; }
-                          .risk-low {background: #065f46; color: #34d399; }
-                          .risk-medium {background: #78350f; color: #fbbf24; }
-                          .risk-high {background: #7f1d1d; color: #f87171; }
-                          .row-unit, .row-total {transition: all 0.3s; }
-                        </style>
-                      </head>
-                      <body>
-                        <h1>RC BOM Builder <small style="font-size:0.5em;color:#666">V2.0</small></h1>
-                        <p class="subtitle">Skeptical RC Buyer • Paste your Bill of Materials, get instant pricing</p>
-                        <textarea id="bom" rows="6">30A ESC x2
-                          40A ESC x1</textarea>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .total-row td { background: #252525; font-weight: 600; border-top: 2px solid #444; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+    .badge-trusted { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; padding: 2px 8px; border-radius: 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; }
+    .badge-low { background: #065f46; color: #34d399; }
+    .badge-medium { background: #78350f; color: #fbbf24; }
+    .badge-high { background: #7f1d1d; color: #f87171; }
+    .verified { color: #4ade80; font-size: 12px; display: block; margin-top: 4px; }
+    .verified::before { content: "✓ "; }
+    .warning { color: #fbbf24; font-size: 12px; display: block; margin-top: 4px; }
+    .warning::before { content: "⚠ "; }
+    .item-details { font-size: 11px; color: #888; margin-top: 4px; }
+    .candidates { margin: 8px 0; }
+    .candidate-row { padding: 6px 8px; margin: 4px 0; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; transition: all 0.2s; }
+    .candidate-row:hover { border-color: #667eea; }
+    .candidate-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+    .candidate-row input[type=radio] { accent-color: #667eea; }
+    .candidate-row .brand { color: #60a5fa; font-weight: 600; }
+    .candidate-row .price { color: #fbbf24; margin-left: auto; }
+    .candidate-row .remark { color: #888; font-size: 11px; }
+    .candidate-row .pack-info { color: #6b7280; font-size: 10px; margin-left: 4px; }
+    .candidate-row .feedback-info { display: flex; gap: 8px; font-size: 10px; color: #9ca3af; margin-left: 8px; }
+    .candidate-row .feedback-info .rating { color: #fbbf24; }
+    .candidate-row .feedback-info .reviews { color: #60a5fa; }
+    .candidate-row .feedback-info .sold { color: #34d399; }
+    .candidate-row .pref-badge { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 6px; font-weight: 600; }
+    .risk-badge { padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-left: 8px; }
+    .risk-low { background: #065f46; color: #34d399; }
+    .risk-medium { background: #78350f; color: #fbbf24; }
+    .risk-high { background: #7f1d1d; color: #f87171; }
+    .row-unit, .row-total { transition: all 0.3s; }
+  </style>
+</head>
+<body>
+  <h1>RC BOM Builder <small style="font-size:0.5em;color:#666">V2.0</small></h1>
+  <p class="subtitle">Skeptical RC Buyer • Paste your Bill of Materials, get instant pricing</p>
+  <textarea id="bom" rows="6" placeholder="30A ESC x2&#10;40A ESC x1&#10;1300mAh 4S LiPo x2"></textarea>
                         <div class="btn-group">
                           <button class="btn-primary" id="btn-price">Get Prices</button>
                           <button class="btn-secondary" id="btn-csv">Download CSV</button>
