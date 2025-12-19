@@ -90,25 +90,47 @@ def extract_product_data(page, url, keyword):
             const titleEl = document.querySelector('h1') || document.querySelector('[class*="title"]');
             const title = titleEl?.textContent?.trim() || 'Unknown Product';
             
-            // Get price - try multiple selectors
+            // Get price - try multiple selectors and extraction methods
             let price = 0;
-            let currency = 'USD';
+            let currency = 'LKR'; // Default to LKR since user is in Sri Lanka
+            
+            // Try various price selectors
             const priceSelectors = [
-                '.product-price-value',
-                '[class*="Price_Price"]',
+                // Modern AliExpress selectors
                 '[class*="price--current"]',
-                '.uniform-banner-box-price'
+                '[class*="Price_Price"]',
+                '[class*="product-price"]',
+                '.uniform-banner-box-price',
+                '[class*="SnapshotPrice"]',
+                '[class*="es--wrap"] [class*="price"]',
+                // Legacy selectors
+                '.product-price-value',
+                '#price span',
+                '[itemprop="price"]'
             ];
+            
             for (const sel of priceSelectors) {
                 const el = document.querySelector(sel);
                 if (el) {
-                    const text = el.textContent;
-                    const match = text.match(/([\\d,.]+)/);
+                    const text = el.textContent || '';
+                    // Match price patterns: LKR343.06 or 343.06 or රු343
+                    const match = text.match(/(?:LKR|රු|\\$|USD)?\\s*([\\d,]+\\.?\\d*)/i);
                     if (match) {
-                        price = parseFloat(match[1].replace(',', ''));
+                        price = parseFloat(match[1].replace(/,/g, ''));
                         if (text.includes('LKR') || text.includes('රු')) currency = 'LKR';
-                        break;
+                        else if (text.includes('$') || text.includes('USD')) currency = 'USD';
+                        if (price > 0) break;
                     }
+                }
+            }
+            
+            // Fallback: search all text nodes for price pattern
+            if (price === 0) {
+                const allText = document.body.innerText || '';
+                const lkrMatch = allText.match(/LKR\\s*([\\d,]+\\.?\\d*)/i);
+                if (lkrMatch) {
+                    price = parseFloat(lkrMatch[1].replace(/,/g, ''));
+                    currency = 'LKR';
                 }
             }
             
