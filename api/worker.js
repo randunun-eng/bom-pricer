@@ -1325,7 +1325,7 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
     if (url.pathname === "/api/crawl/pending" && req.method === "GET") {
       try {
         const result = await env.DB.prepare(`
-          SELECT keyword, canonical_type, fail_count, last_updated 
+          SELECT keyword, canonical_type, fail_count, last_updated, priority
           FROM crawl_keywords 
           WHERE status = 'pending' 
           ORDER BY priority DESC, last_updated ASC
@@ -1336,6 +1336,58 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
           count: result.results?.length || 0,
           keywords: result.results || []
         });
+      } catch (e) {
+        return Response.json({ status: "error", error: e.message }, { status: 500 });
+      }
+    }
+
+    // 🚀 API: Request crawl for keyword (called by UI button)
+    if (url.pathname === "/api/crawl/request" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const keyword = body.keyword?.trim();
+
+        if (!keyword || keyword.length < 3) {
+          return Response.json({ status: "error", error: "Invalid keyword" }, { status: 400 });
+        }
+
+        const now = Date.now();
+
+        // Insert/update keyword with high priority (10 = urgent)
+        await env.DB.prepare(`
+          INSERT INTO crawl_keywords(keyword, canonical_type, priority, status, fail_count, last_updated)
+          VALUES(?, 'UNKNOWN', 10, 'pending', 0, ?)
+          ON CONFLICT(keyword) DO UPDATE SET
+            priority = 10,
+            status = CASE WHEN status = 'done' THEN 'pending' ELSE status END,
+            last_updated = ?
+        `).bind(keyword, now, now).run();
+
+        return Response.json({
+          status: "ok",
+          message: "Crawl requested",
+          keyword: keyword
+        });
+      } catch (e) {
+        return Response.json({ status: "error", error: e.message }, { status: 500 });
+      }
+    }
+
+    // 🔄 API: Mark keyword as done (called by Nova after crawling)
+    if (url.pathname === "/api/crawl/complete" && req.method === "POST") {
+      try {
+        const body = await req.json();
+        const keyword = body.keyword?.trim();
+
+        if (!keyword) {
+          return Response.json({ status: "error", error: "Missing keyword" }, { status: 400 });
+        }
+
+        await env.DB.prepare(`
+          UPDATE crawl_keywords SET status = 'done', last_updated = ? WHERE keyword = ?
+        `).bind(Date.now(), keyword).run();
+
+        return Response.json({ status: "ok", message: "Marked as done" });
       } catch (e) {
         return Response.json({ status: "error", error: e.message }, { status: 500 });
       }
@@ -2569,17 +2621,37 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
       if (e.target.classList.contains('nova-btn')) {
         const keyword = e.target.dataset.keyword;
         if (keyword) {
-          const cmd = 'python scripts/scrape_interactive.py "' + keyword + '"';
-          navigator.clipboard.writeText(cmd).then(() => {
-            e.target.textContent = '✅ Copied!';
-            e.target.style.background = '#10b981';
-            setTimeout(() => {
-              e.target.textContent = '🤖 Run with Nova';
-              e.target.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-            }, 2000);
-          }).catch(() => {
-            // Fallback: show command in prompt
-            prompt('Copy this command:', cmd);
+          e.target.disabled = true;
+          e.target.textContent = '⏳ Requesting...';
+          e.target.style.opacity = '0.7';
+          
+          fetch('/api/crawl/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: keyword })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'ok') {
+              e.target.textContent = '✅ Crawl Requested!';
+              e.target.style.background = '#10b981';
+              // Start polling for data
+              window._pendingRetryCount = 0;
+              setTimeout(() => window.price(), 3000);
+            } else {
+              e.target.textContent = '❌ ' + (data.error || 'Failed');
+              e.target.style.background = '#ef4444';
+              setTimeout(() => {
+                e.target.textContent = '🤖 Run with Nova';
+                e.target.disabled = false;
+                e.target.style.opacity = '1';
+                e.target.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+              }, 3000);
+            }
+          })
+          .catch(err => {
+            e.target.textContent = '❌ Network Error';
+            e.target.style.background = '#ef4444';
           });
         }
       }
