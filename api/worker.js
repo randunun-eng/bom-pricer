@@ -1213,6 +1213,134 @@ export default {
       return new Response(html, { headers: { "Content-Type": "text/html" } });
     }
 
+    // 🖥️ NOVA CRAWL ADMIN PANEL - For users with Nova Act to run crawls
+    if (url.pathname === "/admin/crawl" && req.method === "GET") {
+      // Fetch pending keywords
+      let pendingKeywords = [];
+      try {
+        const result = await env.DB.prepare(`
+          SELECT keyword, canonical_type, fail_count, last_updated 
+          FROM crawl_keywords 
+          WHERE status = 'pending' 
+          ORDER BY priority DESC, last_updated ASC
+          LIMIT 20
+        `).all();
+        pendingKeywords = result.results || [];
+      } catch (e) {
+        console.error("[Admin] Error fetching pending keywords:", e.message);
+      }
+
+      const keywordRows = pendingKeywords.map(kw => `
+        <tr>
+          <td>${kw.keyword}</td>
+          <td>${kw.canonical_type || 'UNKNOWN'}</td>
+          <td>${kw.fail_count || 0}</td>
+          <td>
+            <button class="copy-btn" data-cmd="python scripts/scrape_interactive.py &quot;${kw.keyword}&quot;">
+              📋 Copy Command
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nova Crawl Panel</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #0f0f0f; color: #e0e0e0; font-family: -apple-system, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
+    h1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; margin-bottom: 30px; }
+    .card { background: #1a1a1a; padding: 24px; border-radius: 12px; border: 1px solid #333; margin-bottom: 24px; }
+    .card h2 { margin-top: 0; color: #fff; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+    th { color: #888; font-weight: 500; text-transform: uppercase; font-size: 12px; }
+    .copy-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .copy-btn:hover { transform: translateY(-1px); }
+    .copy-btn.copied { background: #10b981; }
+    .instructions { background: #1a1a2e; padding: 16px; border-radius: 8px; border: 1px solid #667eea33; margin-top: 16px; }
+    .instructions h3 { margin-top: 0; color: #667eea; font-size: 14px; }
+    .instructions pre { background: #0a0a0a; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; color: #4ade80; }
+    .instructions code { color: #fbbf24; }
+    .empty { text-align: center; padding: 40px; color: #666; }
+    a { color: #818cf8; }
+    .refresh-btn { background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Nova Crawl Panel</h1>
+  <p class="subtitle">Run these keywords with Nova Act to populate pricing data</p>
+  
+  <div class="card">
+    <h2>📋 Pending Keywords (${pendingKeywords.length})</h2>
+    ${pendingKeywords.length > 0 ? `
+    <table>
+      <thead>
+        <tr><th>Keyword</th><th>Type</th><th>Fails</th><th>Action</th></tr>
+      </thead>
+      <tbody>${keywordRows}</tbody>
+    </table>
+    ` : '<p class="empty">✅ No pending keywords - all data is up to date!</p>'}
+    <br>
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh List</button>
+  </div>
+
+  <div class="card instructions">
+    <h3>📖 How to Run Nova Crawler</h3>
+    <p>Make sure you have Nova Act installed, then run:</p>
+    <pre>cd /path/to/bom-pricer
+source .venv/bin/activate
+python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
+    <p>Or crawl all pending keywords at once:</p>
+    <pre>python scripts/scrape_batch.py</pre>
+    <p>For more info: <a href="https://github.com/randunun-eng/bom-pricer" target="_blank">GitHub Repository</a></p>
+  </div>
+
+  <p style="margin-top:24px;"><a href="/">← Back to BOM Builder</a> | <a href="/admin/crawl-health">Crawl Health Dashboard</a></p>
+
+  <script>
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.dataset.cmd;
+        navigator.clipboard.writeText(cmd).then(() => {
+          btn.textContent = '✅ Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = '📋 Copy Command';
+            btn.classList.remove('copied');
+          }, 2000);
+        });
+      });
+    });
+  </script>
+</body>
+</html>`;
+      return new Response(html, { headers: { "Content-Type": "text/html" } });
+    }
+
+    // 📋 API: Get pending crawl keywords (for external tools)
+    if (url.pathname === "/api/crawl/pending" && req.method === "GET") {
+      try {
+        const result = await env.DB.prepare(`
+          SELECT keyword, canonical_type, fail_count, last_updated 
+          FROM crawl_keywords 
+          WHERE status = 'pending' 
+          ORDER BY priority DESC, last_updated ASC
+          LIMIT 50
+        `).all();
+        return Response.json({
+          status: "ok",
+          count: result.results?.length || 0,
+          keywords: result.results || []
+        });
+      } catch (e) {
+        return Response.json({ status: "error", error: e.message }, { status: 500 });
+      }
+    }
+
     // CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, {
@@ -2251,9 +2379,11 @@ export default {
                               let statusCell = '';
                               
                              if (i.status === 'PENDING_CRAWL') {
-                               // Clean UX: No button, just status with spinner
+                               // Show spinner + Run with Nova button for users with Nova Act
+                               const safeKeyword = (i.crawl_keyword || i.bom?.raw || '').replace(/"/g, '&quot;');
                                statusCell = '<span class="pending-fetch"><span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:6px;"></span>Fetching from trusted source...</span>';
-                               statusCell += '<br><small style="color:#888;">Nova agent will crawl this item</small>';
+                               statusCell += ' <button class="nova-btn" data-keyword="' + safeKeyword + '" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;">🤖 Run with Nova</button>';
+                               statusCell += '<br><small style="color:#888;">Have Nova Act? Click to copy crawl command</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
                              }
@@ -2433,6 +2563,27 @@ export default {
     });
 
                         // Crawl button removed - Nova agents handle crawling in background
+
+                        // Event delegation for Run with Nova buttons
+                        document.getElementById('results').addEventListener('click', function(e) {
+      if (e.target.classList.contains('nova-btn')) {
+        const keyword = e.target.dataset.keyword;
+        if (keyword) {
+          const cmd = 'python scripts/scrape_interactive.py "' + keyword + '"';
+          navigator.clipboard.writeText(cmd).then(() => {
+            e.target.textContent = '✅ Copied!';
+            e.target.style.background = '#10b981';
+            setTimeout(() => {
+              e.target.textContent = '🤖 Run with Nova';
+              e.target.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            }, 2000);
+          }).catch(() => {
+            // Fallback: show command in prompt
+            prompt('Copy this command:', cmd);
+          });
+        }
+      }
+    });
                       </script>
                     </body>
                 </html>`;
