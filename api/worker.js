@@ -525,7 +525,7 @@ function parseBomLine(line) {
   else if (upper.includes("PROP") || upper.match(/\d+X\d+/)) type = "Propeller";
   else if (upper.includes("SERVO")) type = "Servo";
 
-  const specs = { kv, cells, capacity, current_A: currentA, raw: upper };
+  const specs = { kv, cells, capacity_mah: capacity, current_A: currentA, raw: upper };
   const spec_key = generateSpecKey(type, specs);
 
   return {
@@ -1236,7 +1236,7 @@ export default {
           <td>${kw.canonical_type || 'UNKNOWN'}</td>
           <td>${kw.fail_count || 0}</td>
           <td>
-            <button class="copy-btn" data-cmd="python scripts/scrape_interactive.py &quot;${kw.keyword}&quot;">
+            <button class="copy-btn" data-cmd="cd ~/bom-pricer &amp;&amp; source .venv/bin/activate &amp;&amp; python scripts/scrape_interactive.py &quot;${kw.keyword}&quot;">
               📋 Copy Command
             </button>
           </td>
@@ -2537,13 +2537,13 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                              if (i.status === 'PENDING_CRAWL') {
                                // Show command + request button
                                const rawKeyword = (i.crawl_keyword || i.bom?.raw || '');
-                               // Use single quotes in Python command to avoid HTML attribute issues
-                               const cmdText = "python scripts/scrape_interactive.py '" + rawKeyword.replace(/'/g, "\\'") + "'";
+                               // Full command with venv activation - use && to chain commands
+                               const cmdText = "cd ~/bom-pricer && source .venv/bin/activate && python scripts/scrape_interactive.py '" + rawKeyword.replace(/'/g, "\\'") + "'";
                                const htmlSafeCmd = cmdText.replace(/"/g, '&quot;');
                                statusCell = '<span class="pending-fetch" style="color:#fbbf24;">⏳ No pricing data yet</span>';
                                statusCell += '<br><code class="crawl-cmd" style="background:#1a1a2e;color:#4ade80;padding:4px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:6px 0;cursor:pointer;word-break:break-all;max-width:100%;" data-cmd="' + htmlSafeCmd + '" title="Click to copy">' + cmdText + '</code>';
                                statusCell += ' <button class="copy-cmd-btn" data-cmd="' + htmlSafeCmd + '" style="background:#333;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:10px;">📋 Copy</button>';
-                               statusCell += '<br><small style="color:#888;">Run this command on a PC with Nova Act to populate pricing data</small>';
+                               statusCell += '<br><small style="color:#888;">Run this command in terminal to scrape pricing data</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
                              }
