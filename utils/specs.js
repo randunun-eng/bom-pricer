@@ -47,6 +47,7 @@ export function generateSpecKey(type, specs) {
 
         if (cellsStr && mah) return `BATTERY:${cellsStr}:${mah}`;
         if (cellsStr) return `BATTERY:${cellsStr}`;
+        if (mah) return `BATTERY:ANY:${mah}`;
         return "BATTERY:UNKNOWN";
     }
 
@@ -109,7 +110,23 @@ export function extractSpecs(variantLabel) {
 
     // 3. Voltage (Battery/ESC) - "3S", "2-4S"
     const voltMatch = text.match(/(\d+(?:-\d+)?)\s*S\b/);
-    const voltage_s = voltMatch ? voltMatch[1] + "S" : null;
+    let voltage_s = voltMatch ? voltMatch[1] + "S" : null;
+
+    // Fallback: Infer cells from Voltage (e.g. 3.7V -> 1S)
+    if (!voltage_s) {
+        // Support both dot and comma decimals (3.7V or 3,7V)
+        const vMatch = text.match(/(\d+(?:[.,]\d+)?)\s*V(?:OLT)?\b/);
+        if (vMatch) {
+            // Replace comma with dot for parsing
+            const v = parseFloat(vMatch[1].replace(',', '.'));
+            // Simple mapping for common Lipo voltages
+            if (v >= 3.6 && v <= 4.4) voltage_s = "1S";
+            else if (v >= 7.2 && v <= 8.8) voltage_s = "2S";
+            else if (v >= 10.8 && v <= 13.2) voltage_s = "3S";
+            else if (v >= 14.4 && v <= 17.6) voltage_s = "4S";
+            else if (v >= 21.6 && v <= 26.4) voltage_s = "6S";
+        }
+    }
 
     // 4. Capacity (Battery) - "1500mAh"
     const capMatch = text.match(/(\d+)\s*MAH/);

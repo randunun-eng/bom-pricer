@@ -21,9 +21,15 @@ import random
 import requests
 from playwright.sync_api import sync_playwright
 
+import os
+
 # Configuration
 CLOUDFLARE_API = "https://bom-pricer-api.randunun.workers.dev/api/nova/ingest"
-API_KEY = "66d22b8346317ce8f696f75e250e70811c9c5055ba2f5894"
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    print("❌ Error: API_KEY environment variable not set.")
+    print("   Run: export API_KEY='your_key_here'")
+    sys.exit(1)
 MAX_PRODUCTS = 5
 
 

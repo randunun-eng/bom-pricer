@@ -14,10 +14,16 @@ Usage:
 import requests
 import json
 import sys
+import os
 
 # Configuration - Update these values
 CLOUDFLARE_API = "https://bom-pricer-api.randunun.workers.dev/api/nova/ingest"
-API_KEY = "66d22b8346317ce8f696f75e250e70811c9c5055ba2f5894"
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    # Use dummy value for CLI check output, or raise error? 
+    # The script can be imported, so maybe warn instead of exit?
+    # Original used fallback in CLI. Let's just set it to None and handle it.
+    API_KEY = None
 
 
 def export_current_product(page, api_key=None):

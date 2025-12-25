@@ -1236,7 +1236,7 @@ export default {
           <td>${kw.canonical_type || 'UNKNOWN'}</td>
           <td>${kw.fail_count || 0}</td>
           <td>
-            <button class="copy-btn" data-cmd="cd ~/bom-pricer &amp;&amp; source .venv/bin/activate &amp;&amp; python scripts/scrape_interactive.py &quot;${kw.keyword}&quot;">
+            <button class="copy-btn" data-cmd="export API_KEY='your_api_key_here' &amp;&amp; cd ~/bom-pricer &amp;&amp; source .venv/bin/activate &amp;&amp; python scripts/scrape_interactive.py &quot;${kw.keyword}&quot;">
               📋 Copy Command
             </button>
           </td>
@@ -2402,8 +2402,29 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
   </style>
 </head>
 <body>
-  <h1>RC BOM Builder <small style="font-size:0.5em;color:#666">V2.0</small></h1>
+  <h1>RC BOM Builder <small style="font-size:0.5em;color:#666">V2.1</small></h1>
   <p class="subtitle">Skeptical RC Buyer • Paste your Bill of Materials, get instant pricing</p>
+  
+  <details style="margin-bottom: 20px; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #333;">
+    <summary style="cursor: pointer; color: #667eea; font-weight: 500;">💡 How to use & System Requirements</summary>
+    <div style="margin-top: 10px; font-size: 13px; color: #ccc; line-height: 1.5;">
+      <p><strong>Workflow:</strong></p>
+      <ol style="padding-left: 20px; margin: 5px 0;">
+        <li>Paste your BOM (e.g. "30A ESC x4") into the text box below.</li>
+        <li>Click <strong>Get Prices</strong> to check our database.</li>
+        <li>If an item has <strong>⏳ No pricing data yet</strong>, copy the generated command.</li>
+        <li>Run the command in your local terminal. This starts the scraper.</li>
+        <li>The scraper uploads data automatically. The UI will auto-refresh when ready!</li>
+      </ol>
+      <p style="margin-top: 10px;"><strong>System Requirements (for Scraper):</strong></p>
+      <ul style="padding-left: 20px; margin: 5px 0;">
+        <li>Computer capable of running <strong>Python 3</strong>.</li>
+        <li><strong>Playwright</strong> installed (the script handles environment setup).</li>
+        <li>No API key deploy needed for data uploads.</li>
+      </ul>
+    </div>
+  </details>
+
   <textarea id="bom" rows="6" placeholder="30A ESC x2&#10;40A ESC x1&#10;1300mAh 4S LiPo x2"></textarea>
                         <div class="btn-group">
                           <button class="btn-primary" id="btn-price">Get Prices</button>
@@ -2412,6 +2433,8 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                         <div id="loading"><span class="spinner"></span>Fetching prices...</div>
                         <div id="results"></div>
                         <script>
+    // Secure: Do not inject secrets into public HTML
+    window.NOVA_INGEST_KEY = "";
     // User key for personalized brand preferences (anonymous, local-only)
                           function getUserKey() {
                             let key = localStorage.getItem('bom_user_key');
@@ -2440,6 +2463,13 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                           const data = await res.json();
                           console.log("API Response received:", data.status, "Items:", data.items?.length);
                           renderTable(data);
+                          
+                          // Auto-poll if there are pending items
+                          if (data.items && data.items.some(i => i.status === "pending")) {
+                              console.log("Pending items found. Retrying in 5s...");
+                              setTimeout(window.price, 5000);
+                          }
+
       } catch (e) {
                             console.error("Fetch error:", e);
                           document.getElementById("results").innerHTML = '<p class="status-error">Error: ' + e.message + '</p>';
@@ -2538,12 +2568,12 @@ python scripts/scrape_interactive.py "YOUR_KEYWORD"</pre>
                                // Show command + request button
                                const rawKeyword = (i.crawl_keyword || i.bom?.raw || '');
                                // Full command with venv activation - use && to chain commands
-                               const cmdText = "cd ~/bom-pricer && source .venv/bin/activate && python scripts/scrape_interactive.py '" + rawKeyword.replace(/'/g, "\\'") + "'";
+                               const cmdText = "export API_KEY='your_api_key_here' && cd ~/bom-pricer && source .venv/bin/activate && python scripts/scrape_interactive.py '" + rawKeyword.replace(/'/g, "\\'") + "'";
                                const htmlSafeCmd = cmdText.replace(/"/g, '&quot;');
                                statusCell = '<span class="pending-fetch" style="color:#fbbf24;">⏳ No pricing data yet</span>';
                                statusCell += '<br><code class="crawl-cmd" style="background:#1a1a2e;color:#4ade80;padding:4px 8px;border-radius:4px;font-size:11px;display:inline-block;margin:6px 0;cursor:pointer;word-break:break-all;max-width:100%;" data-cmd="' + htmlSafeCmd + '" title="Click to copy">' + cmdText + '</code>';
                                statusCell += ' <button class="copy-cmd-btn" data-cmd="' + htmlSafeCmd + '" style="background:#333;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:10px;">📋 Copy</button>';
-                               statusCell += '<br><small style="color:#888;">Run this command in terminal to scrape pricing data</small>';
+                               statusCell += '<br><small style="color:#888;">Run in terminal. Data uploads automatically (no deploy needed).</small>';
                              } else {
                                statusCell = '<span class="status-' + i.status.toLowerCase() + '">' + i.status + '</span>';
                              }
